@@ -35,18 +35,18 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
             echo "ENV_NAME=dev" >> $GITHUB_OUTPUT
             echo "TF_DIR=environments/dev" >> $GITHUB_OUTPUT
-            echo "STATE_BUCKET=my-iac-eks-state-dev" >> $GITHUB_OUTPUT
-            echo "STATE_LOCK_TABLE=my-iac-eks-state-lock-dev" >> $GITHUB_OUTPUT
+            echo "STATE_BUCKET=eks-state-dev" >> $GITHUB_OUTPUT
+            echo "STATE_LOCK_TABLE=eks-state-lock-dev" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/release" ]]; then
             echo "ENV_NAME=test" >> $GITHUB_OUTPUT
             echo "TF_DIR=environments/test" >> $GITHUB_OUTPUT
-            echo "STATE_BUCKET=my-iac-eks-state-test" >> $GITHUB_OUTPUT
-            echo "STATE_LOCK_TABLE=my-iac-eks-state-lock-test" >> $GITHUB_OUTPUT
+            echo "STATE_BUCKET=eks-state-test" >> $GITHUB_OUTPUT
+            echo "STATE_LOCK_TABLE=eks-state-lock-test" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "ENV_NAME=prod" >> $GITHUB_OUTPUT
             echo "TF_DIR=environments/prod" >> $GITHUB_OUTPUT
-            echo "STATE_BUCKET=my-iac-eks-state-prod" >> $GITHUB_OUTPUT
-            echo "STATE_LOCK_TABLE=my-iac-eks-state-lock-prod" >> $GITHUB_OUTPUT
+            echo "STATE_BUCKET=eks-state-prod" >> $GITHUB_OUTPUT
+            echo "STATE_LOCK_TABLE=eks-state-lock-prod" >> $GITHUB_OUTPUT
           else
             echo "Unknown branch or tag. Exiting."
             exit 1
@@ -55,8 +55,8 @@ jobs:
       - name: aws credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.TF_VAR_aws_region }}
 
       - name: init tf
