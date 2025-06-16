@@ -9,7 +9,7 @@ variable "cluster_version" {
 }
 
 variable "core_dns_version" {
-  type        = number
+  type        = string
   description = "Instance type for the EKS nodes"
   default     = "v1.11.1-eksbuild.6"
 }
