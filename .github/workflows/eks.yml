@@ -7,6 +7,136 @@ on:
       - release
       - develop
     tags:
+      - 'v*.*.*' 
+
+env:
+  TF_VAR_aws_region: eu-central-1 
+
+jobs:
+  terraform:
+    name: 'Terraform Apply to ${{ matrix.environment_name }}'
+    runs-on: ubuntu-latest
+
+    environment: ${{ matrix.environment_name }}
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    strategy:
+      matrix:
+        include:
+          - if_ref: "refs/heads/develop"
+            environment_name: "dev"
+            tf_dir: "environments/dev"
+            state_bucket: "eks-state-dev" 
+            state_lock_table: "eks-state-lock-dev"
+          - if_ref: "refs/heads/release"
+            environment_name: "test"
+            tf_dir: "environments/test"
+            state_bucket: "eks-state-test"
+            state_lock_table: "eks-state-lock-test"
+          - if_ref: "refs/heads/main"
+            environment_name: "prod"
+            tf_dir: "environments/prod"
+            state_bucket: "eks-state-prod"
+            state_lock_table: "eks-state-lock-prod"
+          - if_ref: "refs/tags/v*.*.*" 
+            environment_name: "prod"
+            tf_dir: "environments/prod"
+            state_bucket: "eks-state-prod"
+            state_lock_table: "eks-state-lock-prod"
+      fail-fast: false 
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.x 
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }} 
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+
+      - name: Terraform Init
+        id: init
+        run: |
+          cd ${{ matrix.tf_dir }}
+          terraform init \
+            -backend-config="bucket=${{ matrix.state_bucket }}" \
+            -backend-config="key=eks/${{ matrix.environment_name }}/terraform.tfstate" \
+            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ matrix.state_lock_table }}"
+        shell: bash
+
+      - name: Terraform Format Check
+        run: |
+          cd ${{ matrix.tf_dir }}
+          terraform fmt -check
+        shell: bash
+
+      - name: Terraform Validate
+        run: |
+          cd ${{ matrix.tf_dir }}
+          terraform validate
+        shell: bash
+
+      - name: Run TFLint
+        run: |
+          cd ${{ matrix.tf_dir }}
+          tflint --recursive # Assuming you want to lint sub-modules too
+        shell: bash
+        continue-on-error: true
+
+      - name: Run Terrascan (Security Scan)
+        run: |
+          # Install Terrascan locally for the runner
+          curl -L "$(curl -s https://api.github.com/repos/tenable/terrascan/releases/latest | grep -o -E "https://.+?terrascan_linux_amd64.tar.gz")" > terrascan.tar.gz
+          tar -xf terrascan.tar.gz terrascan && rm terrascan.tar.gz
+          sudo mv terrascan /usr/local/bin/
+          terrascan version
+          cd ${{ matrix.tf_dir }}
+          terrascan scan -t aws -i terraform
+        shell: bash
+        continue-on-error: true
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          cd ${{ matrix.tf_dir }}
+          terraform plan -out=tfplan
+        shell: bash
+
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ matrix.environment_name }}
+          path: ${{ matrix.tf_dir }}/tfplan
+          retention-days: 1 
+
+      - name: Manual Approval for Deployment
+        if: ${{ matrix.environment_name == 'test' || matrix.environment_name == 'prod' }}
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: 'marcin,daniel'
+          minimum-approvals: 1
+          issue-title: "Approve Terraform Deployment to ${{ matrix.environment_name }}"
+          issue-body: |
+            A Terraform plan is ready for review and deployment to the ${{ matrix.environment_name }} environment.
+            Please review the plan artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/terraform-plan-${{ matrix.environment_name }}
+
+            **Initiator:** ${{ github.actor }}
+            **Branch/Tag:** ${{ github.ref }}
+            **Commit SHA:** ${{ github.sha }}
+          exclude-workflow-initiator-as-approver: true
       - 'v*.*.*'
 
 env:
@@ -106,6 +236,7 @@ jobs:
       - name: Terraform Apply
         id: apply
         run: |
+          cd ${{ matrix.tf_dir }}
           cd ${{ steps.environment.outputs.TF_DIR }}
           terraform apply -auto-approve tfplan
         shell: bash
