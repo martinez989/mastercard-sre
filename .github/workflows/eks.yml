@@ -64,17 +64,17 @@ jobs:
 #          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 #          aws-region: ${{ env.TF_VAR_aws_region }}
 
-      - name: Terraform Init
-        id: init
-        run: |
-          cd ${{ matrix.tf_dir }}
-          terraform init \
-            -backend-config="bucket=${{ matrix.state_bucket }}" \
-            -backend-config="key=eks/${{ matrix.environment_name }}/terraform.tfstate" \
-            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
-            -backend-config="encrypt=true" \
-            -backend-config="dynamodb_table=${{ matrix.state_lock_table }}"
-        shell: bash
+#      - name: Terraform Init
+#        id: init
+#        run: |
+#          cd ${{ matrix.tf_dir }}
+#          terraform init \
+#            -backend-config="bucket=${{ matrix.state_bucket }}" \
+#            -backend-config="key=eks/${{ matrix.environment_name }}/terraform.tfstate" \
+#            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
+#            -backend-config="encrypt=true" \
+#            -backend-config="dynamodb_table=${{ matrix.state_lock_table }}"
+#        shell: bash
 
       - name: Terraform Format Check
         run: |
