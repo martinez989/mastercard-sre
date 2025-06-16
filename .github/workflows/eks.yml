@@ -48,9 +48,6 @@ jobs:
             state_lock_table: "eks-state-lock-prod"
       fail-fast: false 
 
-    if: |
-      github.ref == matrix.if_ref || (startsWith(github.ref, 'refs/tags/v') && matrix.if_ref == 'refs/tags/v*.*.*')
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
