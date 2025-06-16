@@ -137,10 +137,106 @@ jobs:
             **Branch/Tag:** ${{ github.ref }}
             **Commit SHA:** ${{ github.sha }}
           exclude-workflow-initiator-as-approver: true
+      - 'v*.*.*'
+
+env:
+  TF_VAR_aws_region: eu-central-1
+
+jobs:
+  terraform:
+    name: 'terraform apply'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup environment
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.1.7
+
+      - name: Determine Environment
+        id: environment
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "ENV_NAME=dev" >> $GITHUB_OUTPUT
+            echo "TF_DIR=environments/dev" >> $GITHUB_OUTPUT
+            echo "STATE_BUCKET=my-iac-eks-state-dev" >> $GITHUB_OUTPUT
+            echo "STATE_LOCK_TABLE=my-iac-eks-state-lock-dev" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/release" ]]; then
+            echo "ENV_NAME=test" >> $GITHUB_OUTPUT
+            echo "TF_DIR=environments/test" >> $GITHUB_OUTPUT
+            echo "STATE_BUCKET=my-iac-eks-state-test" >> $GITHUB_OUTPUT
+            echo "STATE_LOCK_TABLE=my-iac-eks-state-lock-test" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "ENV_NAME=prod" >> $GITHUB_OUTPUT
+            echo "TF_DIR=environments/prod" >> $GITHUB_OUTPUT
+            echo "STATE_BUCKET=my-iac-eks-state-prod" >> $GITHUB_OUTPUT
+            echo "STATE_LOCK_TABLE=my-iac-eks-state-lock-prod" >> $GITHUB_OUTPUT
+          else
+            echo "Unknown branch or tag. Exiting."
+            exit 1
+          fi
+          
+      - name: aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+
+      - name: init tf
+        id: init
+        run: |
+          cd ${{ steps.environment.outputs.TF_DIR }}
+          terraform init \
+            -backend-config="bucket=${{ steps.environment.outputs.STATE_BUCKET }}" \
+            -backend-config="key=eks/${{ steps.environment.outputs.ENV_NAME }}/terraform.tfstate" \
+            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ steps.environment.outputs.STATE_LOCK_TABLE }}"
+        shell: bash
+
+      - name: terraform validate
+        id: validate
+        run: |
+          cd ${{ steps.environment.outputs.TF_DIR }}
+          terraform validate
+        shell: bash
+
+      - name: TFLint
+        run: |
+          cd ${{ steps.environment.outputs.TF_DIR }}
+          tflint
+        shell: bash
+
+      - name: terraform plan
+        id: plan
+        run: |
+          cd ${{ steps.environment.outputs.TF_DIR }}
+          terraform plan -out=tfplan
+        shell: bash
+
+      - name: manual approval steps
+        if: github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: 'marcin,daniel' 
+          minimum-approvals: 1
+          issue-title: "Approve deployment to ${{ steps.environment.outputs.ENV_NAME }}"
+          issue-body: "A Terraform plan is ready for review and deployment to the ${{ steps.environment.outputs.ENV_NAME }} environment. Please review the plan and approve."
+          exclude-workflow-initiator-as-approver: true
+          plan_artifact_path: "${{ steps.environment.outputs.TF_DIR }}/tfplan" 
 
       - name: Terraform Apply
         id: apply
         run: |
           cd ${{ matrix.tf_dir }}
+          cd ${{ steps.environment.outputs.TF_DIR }}
           terraform apply -auto-approve tfplan
         shell: bash
