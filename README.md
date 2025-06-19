@@ -1,3 +1,6 @@
+## Changelog
+v0.1.0 - Introduce IaC for EKS Cluster in AWS
+
 # mastercard-sre
 
 ```mermaid
@@ -18,35 +21,18 @@ graph TD
         D5 -- Apply Terraform Plan (Test Env) --> G(AWS Test Account)
         G -- EKS Cluster provisioning --> H(Test App Deployment)
 
-        D5 --> D6[Stage 3: Plan IaC Changes Prod Env]
+        H --> H1{Manual Approval} --> D6[Stage 3: Plan IaC Changes Prod Env]
         D6 --> D7{Manual Approval}
         D7 -- Apply Terraform Plan (Prod Env) --> I(AWS Production Account)
         I -- EKS Cluster provisioning --> J(Prod App Deployment)
     end
 
 ```
-<!-- BEGIN_TF_DOCS -->
-## Requirements
 
-No requirements.
+## TODO
+- Test on live AWS account
+- Improve missing bits
+- Develop first application 
+- Introduce observability
+    - Metrics, Traces, Alerting
 
-## Providers
-
-No providers.
-
-## Modules
-
-No modules.
-
-## Resources
-
-No resources.
-
-## Inputs
-
-No inputs.
-
-## Outputs
-
-No outputs.
-<!-- END_TF_DOCS -->
