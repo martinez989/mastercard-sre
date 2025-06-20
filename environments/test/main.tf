@@ -15,14 +15,14 @@ terraform {
     }
   }
 
-  backend local {}
-#  backend "s3" {
-#   bucket         = "eks-state-dev" 
-#    key            = "eks/dev/terraform.tfstate"
-#    region         = "eu-central-1"
-#    encrypt        = true
-#    dynamodb_table = "eks-state-lock-dev" 
-#  }
+  backend "local" {}
+  #  backend "s3" {
+  #   bucket         = "eks-state-dev" 
+  #    key            = "eks/dev/terraform.tfstate"
+  #    region         = "eu-central-1"
+  #    encrypt        = true
+  #    dynamodb_table = "eks-state-lock-dev" 
+  #  }
 }
 
 provider "aws" {
@@ -43,13 +43,13 @@ module "vpc" {
 
 # Use the EKS Cluster module
 module "eks_cluster" {
-  source              = "../../modules/eks-cluster"
-  cluster_name        = var.cluster_name
-  cluster_version     = var.cluster_version
-  vpc_id              = module.vpc.vpc_id
-  private_subnet_ids  = module.vpc.private_subnet_ids
-  environment         = "test"
-  project_tag         = "EKS-MVP"
+  source             = "../../modules/eks-cluster"
+  cluster_name       = var.cluster_name
+  cluster_version    = var.cluster_version
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  environment        = "test"
+  project_tag        = "EKS-MVP"
 
   # test-specific node group configuration
   managed_node_groups = {
@@ -65,7 +65,7 @@ module "eks_cluster" {
 
 # IAM Role for AWS Load Balancer Controller Service Account (IRSA)
 resource "aws_iam_role" "aws_lb_controller_irsa" {
-  name        = "test-aws-lb-controller-irsa"
+  name = "test-aws-lb-controller-irsa"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -91,12 +91,12 @@ resource "aws_iam_role" "aws_lb_controller_irsa" {
 
 resource "aws_iam_role_policy_attachment" "aws_lb_controller_irsa_attachment" {
   role       = aws_iam_role.aws_lb_controller_irsa.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSLoadBalancerControllerIAMPolicy" 
+  policy_arn = "arn:aws:iam::aws:policy/AWSLoadBalancerControllerIAMPolicy"
 }
 
 # IAM Role for Cluster Autoscaler Service Account (IRSA)
 resource "aws_iam_role" "cluster_autoscaler_irsa" {
-  name        = "test-cluster-autoscaler-irsa"
+  name = "test-cluster-autoscaler-irsa"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -164,16 +164,16 @@ resource "aws_iam_role_policy_attachment" "cluster_autoscaler_irsa_attachment" {
 
 
 module "common_add_ons" {
-  source                               = "../../modules/add-ons"
-  aws_region                           = var.region
-  eks_cluster_name                     = module.eks_cluster.cluster_id
-  eks_cluster_endpoint                 = module.eks_cluster.cluster_endpoint
-  eks_cluster_ca_certificate           = module.eks_cluster.kubeconfig_certificate_authority_data
-  enable_metrics_server                = true
-  enable_aws_load_balancer_controller  = true
-  aws_lb_controller_iam_role_arn       = aws_iam_role.aws_lb_controller_irsa.arn
-  enable_cluster_autoscaler            = true
-  cluster_autoscaler_iam_role_arn      = aws_iam_role.cluster_autoscaler_irsa.arn
+  source                              = "../../modules/add-ons"
+  aws_region                          = var.region
+  eks_cluster_name                    = module.eks_cluster.cluster_id
+  eks_cluster_endpoint                = module.eks_cluster.cluster_endpoint
+  eks_cluster_ca_certificate          = module.eks_cluster.kubeconfig_certificate_authority_data
+  enable_metrics_server               = true
+  enable_aws_load_balancer_controller = true
+  aws_lb_controller_iam_role_arn      = aws_iam_role.aws_lb_controller_irsa.arn
+  enable_cluster_autoscaler           = true
+  cluster_autoscaler_iam_role_arn     = aws_iam_role.cluster_autoscaler_irsa.arn
 }
 
 data "aws_caller_identity" "current" {}

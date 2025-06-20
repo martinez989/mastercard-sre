@@ -1,0 +1,250 @@
+name: IaC EKS - Sequential Deployment
+
+on:
+  workflow_run:
+    workflows: ["IaC EKS - Local Validation Checks"]
+    types:
+      - completed
+    branches:
+      - main
+
+env:
+  TF_VAR_aws_region: eu-central-1
+
+jobs:
+  # -------------------------------------------------------------
+  # Stage 1: Deploy to Dev Environment
+  # -------------------------------------------------------------
+  deploy_dev:
+    name: 'Deploy to Dev Environment'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    if: github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_ref, 'refs/tags/v'))
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.x
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+
+      - name: Terraform Init (Dev)
+        run: |
+          cd environments/dev
+          # Your main.tf files should have backend "s3" {} defined for this workflow
+          terraform init \
+            -backend-config="bucket=eks-state-dev" \
+            -backend-config="key=eks/dev/terraform.tfstate" \
+            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=eks-state-lock-dev"
+        shell: bash
+
+      - name: Terraform Plan (Dev)
+        run: |
+          cd environments/dev
+          terraform plan -out=tfplan_dev
+        shell: bash
+
+      - name: Upload Terraform Plan Artifact (Dev)
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-dev
+          path: environments/dev/tfplan_dev
+          retention-days: 1
+
+      - name: Manual Approval for Dev Deployment
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: 'marcin,daniel'
+          minimum-approvals: 1
+          issue-title: "Approve Terraform Deployment to Dev"
+          issue-body: |
+            A Terraform plan is ready for review and deployment to the **Dev** environment.
+            Please review the plan artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/terraform-plan-dev
+
+            **Initiator:** ${{ github.actor }}
+            **Branch/Tag:** ${{ github.event.workflow_run.head_branch || github.event.workflow_run.head_ref }}
+            **Commit SHA:** ${{ github.event.workflow_run.head_sha }}
+          exclude-workflow-initiator-as-approver: true
+
+      - name: Terraform Apply (Dev)
+        run: |
+          cd environments/dev
+          terraform apply -auto-approve tfplan_dev
+        shell: bash
+
+  # -------------------------------------------------------------
+  # Stage 2: Deploy to Test Environment
+  # -------------------------------------------------------------
+  deploy_test:
+    name: 'Deploy to Test Environment'
+    runs-on: ubuntu-latest
+    environment: test
+    needs: deploy_dev
+    
+    if: github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_ref, 'refs/tags/v'))
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.x
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+
+      - name: Terraform Init (Test)
+        run: |
+          cd environments/test
+          terraform init \
+            -backend-config="bucket=eks-state-test" \
+            -backend-config="key=eks/test/terraform.tfstate" \
+            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=eks-state-lock-test"
+        shell: bash
+
+      - name: Terraform Plan (Test)
+        run: |
+          cd environments/test
+          terraform plan -out=tfplan_test
+        shell: bash
+
+      - name: Upload Terraform Plan Artifact (Test)
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-test
+          path: environments/test/tfplan_test
+          retention-days: 1
+
+      - name: Manual Approval for Test Deployment
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: 'marcin,daniel'
+          minimum-approvals: 1
+          issue-title: "Approve Terraform Deployment to Test"
+          issue-body: |
+            A Terraform plan is ready for review and deployment to the **Test** environment.
+            Please review the plan artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/terraform-plan-test
+
+            **Initiator:** ${{ github.actor }}
+            **Branch/Tag:** ${{ github.event.workflow_run.head_branch || github.event.workflow_run.head_ref }}
+            **Commit SHA:** ${{ github.event.workflow_run.head_sha }}
+          exclude-workflow-initiator-as-approver: true
+
+      - name: Terraform Apply (Test)
+        run: |
+          cd environments/test
+          terraform apply -auto-approve tfplan_test
+        shell: bash
+
+  # -------------------------------------------------------------
+  # Stage 3: Deploy to Production Environment
+  # -------------------------------------------------------------
+  deploy_prod:
+    name: 'Deploy to Prod Environment'
+    runs-on: ubuntu-latest
+    environment: prod
+    needs: deploy_test
+    
+    if: github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_ref, 'refs/tags/v'))
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.x
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+
+      - name: Terraform Init (Prod)
+        run: |
+          cd environments/prod
+          terraform init \
+            -backend-config="bucket=eks-state-prod" \
+            -backend-config="key=eks/prod/terraform.tfstate" \
+            -backend-config="region=${{ env.TF_VAR_aws_region }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=eks-state-lock-prod"
+        shell: bash
+
+      - name: Terraform Plan (Prod)
+        run: |
+          cd environments/prod
+          terraform plan -out=tfplan_prod
+        shell: bash
+
+      - name: Upload Terraform Plan Artifact (Prod)
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: environments/prod/tfplan_prod
+          retention-days: 1
+
+      - name: Manual Approval for Prod Deployment
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: 'marcin,daniel'
+          minimum-approvals: 1
+          issue-title: "Approve Terraform Deployment to Prod"
+          issue-body: |
+            A Terraform plan is ready for review and deployment to the **Prod** environment.
+            Please review the plan artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/terraform-plan-prod
+
+            **Initiator:** ${{ github.actor }}
+            **Branch/Tag:** ${{ github.event.workflow_run.head_branch || github.event.workflow_run.head_ref }}
+            **Commit SHA:** ${{ github.event.workflow_run.head_sha }}
+          exclude-workflow-initiator-as-approver: true
+
+      - name: Terraform Apply (Prod)
+        run: |
+          cd environments/prod
+          terraform apply -auto-approve tfplan_prod
+        shell: bash

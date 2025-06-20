@@ -57,7 +57,7 @@ jobs:
       - name: Terraform Format Check
         run: |
           cd ${{ matrix.tf_dir }}
-          terraform fmt
+          terraform fmt --check
         shell: bash
 
       - name: Terraform Validate
