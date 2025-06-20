@@ -32,7 +32,7 @@ graph TD
 ## TODO
 - Test on live AWS account
 - Improve missing bits
-- Develop first application 
+- Develop / deploy first application 
 - Introduce observability
     - Metrics, Traces, Alerting
 
