@@ -13,13 +13,15 @@ terraform {
       version = "~> 2.11.0"
     }
   }
-  backend "s3" {
-    bucket         = "eks-state-test" # Unique S3 bucket for test state
-    key            = "eks/test/terraform.tfstate"
-    region         = "eu-central-1"
-    encrypt        = true
-    dynamodb_table = "eks-state-lock-test" # Unique DynamoDB table for test lock
-  }
+
+  backend local {}
+#  backend "s3" {
+#   bucket         = "eks-state-dev" 
+#    key            = "eks/dev/terraform.tfstate"
+#    region         = "eu-central-1"
+#    encrypt        = true
+#    dynamodb_table = "eks-state-lock-dev" 
+#  }
 }
 
 provider "aws" {

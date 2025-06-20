@@ -13,13 +13,15 @@ terraform {
       version = "~> 2.11.0"
     }
   }
-  backend "s3" {
-    bucket         = "eks-state-prod" # Unique S3 bucket for prod state
-    key            = "eks/prod/terraform.tfstate"
-    region         = "eu-central-1"
-    encrypt        = true
-    dynamodb_table = "eks-state-lock-prod" # Unique DynamoDB table for prod lock
-  }
+  
+  backend local {}
+#  backend "s3" {
+#   bucket         = "eks-state-dev" 
+#    key            = "eks/dev/terraform.tfstate"
+#    region         = "eu-central-1"
+#    encrypt        = true
+#    dynamodb_table = "eks-state-lock-dev" 
+#  }
 }
 
 provider "aws" {
