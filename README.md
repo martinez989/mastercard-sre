@@ -7,16 +7,16 @@ v0.1.0 - Introduce IaC for EKS Cluster in AWS
 graph TD
     A[Admin] --> B(Git Push to Infrastructure Repo)
     B --> C{GitHub Repository}
-    C -- Webhook Trigger --> D(CI/CD Pipeline)
+    C --> D(CI/CD Pipeline)
 
     subgraph CI/CD Pipeline
         D --> D1[Stage 1: Validate IaC Dev Env]
         D1 -- Terraform fmt/validate, tflint, Terrascan --> D2(Stage 2: Plan IaC Changes)
-        D2 --> D3{Manual Approval}
+        D2 --> D3{If success go to deployment}
         D3 -- Apply Terraform Plan (Dev Env) --> E(AWS Development Account)
         E -- EKS Cluster provisioning --> F(Dev App Deployment)
 
-        D3 --> D4(Stage 2: Plan IaC Changes Test Env)
+        F --> D4(Stage 2: Plan IaC Changes Test Env)
         D4 --> D5{Manual Approval}
         D5 -- Apply Terraform Plan (Test Env) --> G(AWS Test Account)
         G -- EKS Cluster provisioning --> H(Test App Deployment)
