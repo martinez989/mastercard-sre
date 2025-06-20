@@ -20,8 +20,8 @@ jobs:
     environment: ${{ matrix.environment_name }}
 
     env:
-#      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       TF_VAR_aws_region: eu-central-1
 
 
@@ -39,11 +39,6 @@ jobs:
             state_bucket: "eks-state-test"
             state_lock_table: "eks-state-lock-test"
           - if_ref: "refs/heads/main"
-            environment_name: "prod"
-            tf_dir: "environments/prod"
-            state_bucket: "eks-state-prod"
-            state_lock_table: "eks-state-lock-prod"
-          - if_ref: "refs/tags/v*.*.*" 
             environment_name: "prod"
             tf_dir: "environments/prod"
             state_bucket: "eks-state-prod"
