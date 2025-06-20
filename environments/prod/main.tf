@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.8.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -13,7 +14,7 @@ terraform {
       version = "~> 2.11.0"
     }
   }
-  
+
   backend local {}
 #  backend "s3" {
 #   bucket         = "eks-state-dev" 
