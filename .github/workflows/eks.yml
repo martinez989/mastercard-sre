@@ -37,6 +37,16 @@ jobs:
         with:
           terraform_version: 1.8.x 
 
+      - name: Install TFLint
+        run: |
+          TFLINT_VERSION=$(curl -s https://api.github.com/repos/terraform-linters/tflint/releases/latest | grep "tag_name" | cut -d : -f 2 | tr -d " \",v")
+          echo "Installing TFLint version $TFLINT_VERSION"
+          curl -sL "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_amd64.zip" -o tflint.zip
+          unzip tflint.zip
+          sudo mv tflint /usr/local/bin/tflint
+          tflint --version
+        shell: bash
+
       - name: Terraform Init (Local Backend)
         id: init
         run: |
