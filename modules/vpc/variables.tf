@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Name prefix for VPC resources (e.g., 'dev-eks-vpc')."
+  description = "Name prefix for VPC resources."
   type        = string
 }
 
@@ -25,11 +25,11 @@ variable "enable_nat_gateway" {
 }
 
 variable "environment" {
-  description = "The environment tag (e.g., 'dev', 'test', 'prod')."
+  description = "The environment tag."
   type        = string
 }
 
 variable "project_tag" {
-  description = "The project tag (e.g., 'EKS-MVP')."
+  description = "The project tag."
   type        = string
 }

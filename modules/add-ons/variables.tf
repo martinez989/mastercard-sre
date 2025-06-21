@@ -1,5 +1,3 @@
-# modules/common-add-ons/variables.tf
-
 variable "aws_region" {
   description = "The AWS region where the EKS cluster is deployed."
   type        = string
@@ -29,7 +27,7 @@ variable "enable_metrics_server" {
 variable "metrics_server_chart_version" {
   description = "The chart version of the Metrics Server to deploy."
   type        = string
-  default     = "3.11.0" # Check latest stable version
+  default     = "3.11.0"
 }
 
 variable "enable_aws_load_balancer_controller" {
@@ -41,13 +39,13 @@ variable "enable_aws_load_balancer_controller" {
 variable "aws_lb_controller_chart_version" {
   description = "The chart version of the AWS Load Balancer Controller to deploy."
   type        = string
-  default     = "1.7.1" # Check latest stable version
+  default     = "1.7.1"
 }
 
 variable "aws_lb_controller_iam_role_arn" {
   description = "The ARN of the IAM role for the AWS Load Balancer Controller Service Account."
   type        = string
-  nullable    = false # This must be provided if controller is enabled
+  nullable    = false
 }
 
 variable "enable_cluster_autoscaler" {
@@ -59,11 +57,11 @@ variable "enable_cluster_autoscaler" {
 variable "cluster_autoscaler_chart_version" {
   description = "The chart version of the Cluster Autoscaler to deploy."
   type        = string
-  default     = "9.36.0" # Check latest stable version
+  default     = "9.36.0"
 }
 
 variable "cluster_autoscaler_iam_role_arn" {
   description = "The ARN of the IAM role for the Cluster Autoscaler Service Account."
   type        = string
-  nullable    = false # This must be provided if autoscaler is enabled
+  nullable    = false
 }

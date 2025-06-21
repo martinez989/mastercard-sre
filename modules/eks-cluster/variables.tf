@@ -4,7 +4,7 @@ variable "cluster_name" {
 }
 
 variable "cluster_version" {
-  description = "Kubernetes version for the EKS cluster (e.g., '1.28')."
+  description = "Kubernetes version for the EKS cluster."
   type        = string
 }
 
@@ -32,12 +32,12 @@ variable "managed_node_groups" {
 }
 
 variable "environment" {
-  description = "The environment tag (e.g., 'dev', 'test', 'prod')."
+  description = "The environment tag."
   type        = string
 }
 
 variable "project_tag" {
-  description = "The project tag (e.g., 'EKS-MVP')."
+  description = "The project tag."
   type        = string
 }
 
